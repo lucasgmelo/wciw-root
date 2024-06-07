@@ -52,7 +52,7 @@
     <!-- Add your organization's prod import map URL to this script's src  -->
     <!-- <script type="systemjs-importmap" src="/importmap.json"></script> -->
 
-    <% if (isLocal) { %>
+    <!-- <% if (isLocal) { %> -->
     <script type="systemjs-importmap">
       {
         "imports": {
@@ -63,15 +63,15 @@
         }
       }
     </script>
-    <% } %>
+    <!-- <% } %> -->
     <script src="https://cdn.jsdelivr.net/npm/import-map-overrides@2.2.0/dist/import-map-overrides.js"></script>
-    <% if (isLocal) { %>
+    <!-- <% if (isLocal) { %> -->
     <script src="https://cdn.jsdelivr.net/npm/systemjs@6.8.3/dist/system.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/systemjs@6.8.3/dist/extras/amd.js"></script>
-    <% } else { %>
+    <!-- <% } else { %>
     <script src="https://cdn.jsdelivr.net/npm/systemjs@6.8.3/dist/system.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/systemjs@6.8.3/dist/extras/amd.min.js"></script>
-    <% } %>
+    <% } %> -->
 
     <style>
       body,
@@ -83,7 +83,6 @@
   <body>
     <noscript> You need to enable JavaScript to run this app. </noscript>
     <script>
-      System.import("@wciw/root-config");
       System.import("@wciw/root-config");
     </script>
     <import-map-overrides-full
