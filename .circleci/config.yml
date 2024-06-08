@@ -1,88 +1,60 @@
-version: 2
+# This config was automatically generated from your source code
+# Stacks detected: deps:node:.,package_manager:yarn:,test:jest:
+version: 2.1
+orbs:
+  node: circleci/node@5
 jobs:
-  setup:
-    docker:
-      - image: circleci/node:12.13.1
-    steps:
-      - checkout
-      - restore_cache:
-          key: dependency-cache-{{ checksum "yarn.lock" }}
-      - run:
-          name: Install
-          command: yarn install --frozen-lockfile
-      - save_cache:
-          key: dependency-cache-{{ checksum "yarn.lock" }}
-          paths:
-            - node_modules
-  build:
-    docker:
-      - image: circleci/node:12.13.1
-    steps:
-      - checkout
-      - restore_cache:
-          key: dependency-cache-{{ checksum "yarn.lock" }}
-      - run:
-          name: Build
-          command: |
-            yarn build
-            ls dist
-      - save_cache:
-          key: build-output-{{ .Environment.CIRCLE_SHA1 }}
-          paths:
-            - dist
-      - store_artifacts:
-          path: dist
-          destination: dist
-  test:
-    docker:
-      - image: circleci/node:12.13.1
-    steps:
-      - checkout
-      - restore_cache:
-          key: dependency-cache-{{ checksum "yarn.lock" }}
-      - run:
-          name: Test and Lint
-          command: yarn lint
-  deploy:
-    docker:
-      - image: google/cloud-sdk
+  test-node:
+    # Install node dependencies and run tests
+    executor: node/default
     environment:
-
+      JEST_JUNIT_OUTPUT_DIR: ./test-results/
     steps:
-      - restore_cache:
-          key: build-output-{{ .Environment.CIRCLE_SHA1 }}
+      - checkout
+      - node/install-packages:
+          pkg-manager: yarn
       - run:
-          name: Deploy
-          command: |
-            echo "Going to correct directory"
-            cd /home/circleci/project/
-            ls dist
-            echo "Creating google application credentials json file"
-            echo $GOOGLE_APPLICATION_CREDENTIALS_JSON > google-application-credentials.json
-            echo "Authenticating with Google"
-            gcloud auth activate-service-account --key-file google-application-credentials.json
-            echo "Commit sha is $CIRCLE_SHA1. This will be the directory name under $CIRCLE_PROJECT_REPONAME in Cloud Storage."
-            echo "Uploading navbar module"
-            gsutil cp -rZ dist gs://$BUCKET_NAME/$CIRCLE_PROJECT_REPONAME/$CIRCLE_SHA1
-            echo "Updating import map"
-            echo '{ "service":"@react-mf/'"$CIRCLE_PROJECT_REPONAME"'","url":"https://'"$CF_PUBLIC_URL"'/'"$CIRCLE_PROJECT_REPONAME"'/'"$CIRCLE_SHA1"'/react-mf-'"$CIRCLE_PROJECT_REPONAME"'.js" }'
-            curl -u $DEPLOYER_USERNAME:$DEPLOYER_PASSWORD -d '{ "service":"@react-mf/'"$CIRCLE_PROJECT_REPONAME"'","url":"https://'"$CF_PUBLIC_URL"'/'"$CIRCLE_PROJECT_REPONAME"'/'"$CIRCLE_SHA1"'/react-mf-'"$CIRCLE_PROJECT_REPONAME"'.js" }' -X PATCH http://$DEPLOYER_HOST/services\?env=$DEPLOYER_ENV -H "Accept:application/json" -H "Content-Type:application/json" --fail --insecure -i
+          command: yarn add jest-junit --ignore-workspace-root-check
+      - run:
+          name: Run tests
+          command: yarn run test --ci --runInBand --reporters=default --reporters=jest-junit
+      - store_test_results:
+          path: ./test-results/
+  build-node:
+    # Build node project
+    executor: node/default
+    steps:
+      - checkout
+      - node/install-packages:
+          pkg-manager: yarn
+      - run:
+          command: yarn run build
+      - run:
+          name: Create the ~/artifacts directory if it doesn't exist
+          command: mkdir -p ~/artifacts
+      # Copy output to artifacts dir
+      - run:
+          name: Copy artifacts
+          command: cp -R build dist public .output .next .docusaurus ~/artifacts 2>/dev/null || true
+      - store_artifacts:
+          path: ~/artifacts
+          destination: node-build
+  deploy:
+    # This is an example deploy job, not actually used by the workflow
+    docker:
+      - image: cimg/base:stable
+    steps:
+      # Replace this with steps to deploy to users
+      - run:
+          name: deploy
+          command: "#e.g. ./deploy.sh"
 workflows:
-  version: 2
-  build_and_deploy:
+  build-and-test:
     jobs:
-      - setup
-      - build:
+      - test-node
+      - build-node:
           requires:
-            - setup
-      - test:
-          requires:
-            - setup
-      - deploy:
-          context: deploy-context
-          requires:
-            - build
-            - test
-          filters:
-            branches:
-              only: master
+            - test-node
+    # - deploy:
+    #     requires:
+    #       - build-node
